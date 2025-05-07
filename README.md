@@ -1,2 +1,261 @@
 # Calendario.ru-asb
-Calendario menstrual, proyecto 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario Menstrual + Diario</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffe6f2;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #ff66b3;
+        }
+        input, textarea {
+            padding: 10px;
+            margin: 10px 0;
+            width: 80%;
+            border: 1px solid #ff99cc;
+            border-radius: 5px;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background-color: #ff66b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #ff3385;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff0f5;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .day {
+            padding: 10px;
+            border: 1px solid #ffccdd;
+            border-radius: 5px;
+            background-color: white;
+            position: relative;
+        }
+        .fertile {
+            background-color: #ffccff;
+            font-weight: bold;
+        }
+        .period {
+            background-color: #ffb3d9;
+            font-weight: bold;
+        }
+        .peak-fertility {
+            background-color: #ff99ff;
+            font-weight: bold;
+        }
+        .has-note::after {
+            content: "📝";
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 12px;
+        }
+        .diario {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .diario h3 {
+            color: #ff66b3;
+            border-bottom: 1px solid #ffccdd;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Calendario Menstrual + Diario</h1>
+        <p>Ingresa la fecha de tu último período:</p>
+        <input type="date" id="lastPeriodDate">
+        <button onclick="calculateCycle()">Calcular Ciclo</button>
+        
+        <div id="results" class="result" style="display: none;">
+            <h3>📆 Tus próximos días:</h3>
+            <p><strong>Último período:</strong> <span id="lastPeriod"></span></p>
+            <p><strong>Próximo período:</strong> <span id="nextPeriod"></span></p>
+            <p><strong>Días fértiles:</strong> <span id="fertileDays"></span></p>
+            <p><strong>Días de mayor fertilidad:</strong> <span id="peakFertility"></span></p>
+            
+            <div class="calendar" id="calendar"></div>
+        </div>
+
+        <div class="diario">
+            <h3>📝 Diario / Notas</h3>
+            <p><strong>Última relación sexual:</strong></p>
+            <input type="date" id="lastRelationshipDate">
+            <p><strong>Notas (síntomas, recordatorios, etc.):</strong></p>
+            <textarea id="notes" placeholder="Escribe aquí..."></textarea>
+            <button onclick="saveNotes()">💾 Guardar Notas</button>
+            <button onclick="loadNotes()">🔍 Cargar Notas</button>
+        </div>
+    </div>
+
+    <script>
+        // Cargar datos guardados al iniciar
+        window.onload = function() {
+            loadNotes();
+        };
+
+        function calculateCycle() {
+            const lastPeriodDate = new Date(document.getElementById("lastPeriodDate").value);
+            if (isNaN(lastPeriodDate.getTime())) {
+                alert("⚠️ Por favor, ingresa una fecha válida.");
+                return;
+            }
+
+            const cycleLength = 28; // Ciclo promedio (ajustable)
+            const lutealPhase = 14; // Fase lútea
+
+            const nextPeriodDate = new Date(lastPeriodDate);
+            nextPeriodDate.setDate(nextPeriodDate.getDate() + cycleLength);
+
+            const ovulationDate = new Date(nextPeriodDate);
+            ovulationDate.setDate(ovulationDate.getDate() - lutealPhase);
+
+            const fertileStart = new Date(ovulationDate);
+            fertileStart.setDate(fertileStart.getDate() - 5);
+
+            const fertileEnd = new Date(ovulationDate);
+            fertileEnd.setDate(fertileEnd.getDate() + 1);
+
+            const peakFertilityStart = new Date(ovulationDate);
+            peakFertilityStart.setDate(peakFertilityStart.getDate() - 2);
+
+            const peakFertilityEnd = new Date(ovulationDate);
+            peakFertilityEnd.setDate(peakFertilityEnd.getDate() + 1);
+
+            // Mostrar resultados
+            document.getElementById("lastPeriod").textContent = formatDate(lastPeriodDate);
+            document.getElementById("nextPeriod").textContent = formatDate(nextPeriodDate);
+            document.getElementById("fertileDays").textContent = `${formatDate(fertileStart)} al ${formatDate(fertileEnd)}`;
+            document.getElementById("peakFertility").textContent = `${formatDate(peakFertilityStart)} al ${formatDate(peakFertilityEnd)}`;
+
+            // Generar calendario
+            generateCalendar(lastPeriodDate, nextPeriodDate, fertileStart, fertileEnd, peakFertilityStart, peakFertilityEnd);
+
+            document.getElementById("results").style.display = "block";
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString("es-ES", { day: 'numeric', month: 'long' });
+        }
+
+        function generateCalendar(lastPeriod, nextPeriod, fertileStart, fertileEnd, peakStart, peakEnd) {
+            const calendar = document.getElementById("calendar");
+            calendar.innerHTML = "";
+
+            const startDate = new Date(lastPeriod);
+            startDate.setDate(startDate.getDate() - 3);
+
+            const endDate = new Date(nextPeriod);
+            endDate.setDate(endDate.getDate() + 7);
+
+            const currentDate = new Date(startDate);
+
+            // Encabezados de días
+            const daysOfWeek = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            daysOfWeek.forEach(day => {
+                const dayHeader = document.createElement("div");
+                dayHeader.textContent = day;
+                dayHeader.style.fontWeight = "bold";
+                calendar.appendChild(dayHeader);
+            });
+
+            // Cargar notas guardadas
+            const savedNotes = JSON.parse(localStorage.getItem("menstrualNotes")) || {};
+
+            while (currentDate <= endDate) {
+                const dayElement = document.createElement("div");
+                dayElement.textContent = currentDate.getDate();
+
+                const dateKey = currentDate.toISOString().split("T")[0];
+
+                // Marcar días importantes
+                if (currentDate >= lastPeriod && currentDate < new Date(lastPeriod.getTime() + 5 * 24 * 60 * 60 * 1000)) {
+                    dayElement.classList.add("period");
+                } else if (currentDate >= fertileStart && currentDate <= fertileEnd) {
+                    dayElement.classList.add("fertile");
+                }
+                if (currentDate >= peakStart && currentDate <= peakEnd) {
+                    dayElement.classList.add("peak-fertility");
+                }
+
+                // Resaltar días con notas
+                if (savedNotes[dateKey]) {
+                    dayElement.classList.add("has-note");
+                    dayElement.title = savedNotes[dateKey].notes || "Nota guardada";
+                }
+
+                calendar.appendChild(dayElement);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        }
+
+        function saveNotes() {
+            const lastRelationshipDate = document.getElementById("lastRelationshipDate").value;
+            const notes = document.getElementById("notes").value;
+            const dateKey = new Date().toISOString().split("T")[0]; // Usa la fecha actual o permite elegir
+
+            const savedData = {
+                lastRelationshipDate,
+                notes,
+                date: dateKey
+            };
+
+            // Guardar en localStorage
+            const existingNotes = JSON.parse(localStorage.getItem("menstrualNotes")) || {};
+            existingNotes[dateKey] = savedData;
+            localStorage.setItem("menstrualNotes", JSON.stringify(existingNotes));
+
+            alert("📌 Notas guardadas correctamente.");
+            loadNotes(); // Actualizar vista
+        }
+
+        function loadNotes() {
+            const savedNotes = JSON.parse(localStorage.getItem("menstrualNotes")) || {};
+            const lastEntry = Object.values(savedNotes).pop(); // Obtener la última entrada
+
+            if (lastEntry) {
+                document.getElementById("lastRelationshipDate").value = lastEntry.lastRelationshipDate || "";
+                document.getElementById("notes").value = lastEntry.notes || "";
+            }
+        }
+    </script>
+</body>
+</html>
